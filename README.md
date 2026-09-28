@@ -64,8 +64,8 @@ sqlite3 gram-prices.sqlite3 'SELECT count(*) FROM price_observations;'
 Нужны Docker и Docker Compose. Для новой установки:
 
 ```sh
-git clone https://github.com/justkiddingxd/gram-prices.git
-cd gram-prices
+git clone https://github.com/justkiddingxd/gramhistory.git
+cd gramhistory
 mkdir -p data
 curl --fail --location --output data/initial.sqlite3.gz https://gram.rin.ms/v1/ton/export
 gzip --decompress --stdout data/initial.sqlite3.gz > data/ton-prices.sqlite3
