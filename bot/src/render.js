@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
 import { DateTime } from 'luxon';
 import { InlineQueryResult, InputMessageContent } from 'puregram';
+import { displayCurrency, summarizeDay } from './summary.js';
 
 export const escapeHtml = (value) => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const e = escapeHtml;
-const price = value => e(String(value).replace('.', ','));
+const price = value => String(value).replace('.', ',');
 const icons = {
   max: ['5875078273775439450', '🔼'],
   min: ['5875008416132370818', '🔽'],
@@ -17,6 +18,12 @@ const icons = {
   gram: ['6006074913742396956', '💎'],
 };
 const icon = name => `<tg-emoji emoji-id="${icons[name][0]}">${icons[name][1]}</tg-emoji>`;
+const richIcon = name => ({ type: 'custom_emoji', custom_emoji_id: icons[name][0], alternative_text: icons[name][1] });
+const bold = text => ({ type: 'bold', text });
+const paragraph = text => ({ type: 'paragraph', text });
+const link = (text, url) => ({ type: 'url', text, url });
+const cell = (text, header = false) => ({ text, align: 'left', valign: 'middle', ...(header ? { is_header: true } : {}) });
+const approximationNote = 'USDT ≈ USD (1:1)';
 const footer = '<footer><a href="https://gram.rin.ms/docs">Gram Prices</a> · История GRAM</footer>';
 
 function result({ title, description, html, query = '' }) {
@@ -31,6 +38,20 @@ function result({ title, description, html, query = '' }) {
     title,
     description: description.slice(0, 250),
     content: InputMessageContent.rich.html(content, { skipEntityDetection: true }),
+  });
+}
+
+function blockResult({ title, description, blocks, footerText, query }) {
+  const richMessage = {
+    blocks: [...blocks, { type: 'buttons', buttons: [
+      { text: [richIcon('date'), ' Другая дата'], switch_inline_query_current_chat: query },
+      { text: [richIcon('api'), ' Об API'], url: 'https://gram.rin.ms/docs' },
+    ] }, { type: 'footer', text: footerText }],
+    skip_entity_detection: true,
+  };
+  return InlineQueryResult.article({
+    id: createHash('sha256').update(JSON.stringify(richMessage)).digest('hex').slice(0, 32),
+    title, description: description.slice(0, 250), content: { rich_message: richMessage },
   });
 }
 
@@ -59,7 +80,7 @@ export function noticeResult(title, message) {
 
 export function loadingResult(query, input) {
   const day = query.moment.toFormat('dd.MM.yyyy');
-  const hash = createHash('sha256').update(input).digest('hex');
+  const hash = createHash('sha256').update('usd-blocks-v2:' + input).digest('hex');
   return InlineQueryResult.article({
     // Preserve relative dates across midnight, selection delays and bot restarts.
     id: query.referenceAt === undefined ? 'load:' + hash.slice(0, 32) : `load:r${query.referenceAt.toString(36)}:${hash.slice(0, 16)}`,
@@ -72,44 +93,53 @@ export function loadingResult(query, input) {
 }
 
 function sourceNotes() {
-  return '<details><summary>Об источнике</summary><p>Все цены GRAM начиная с 15 декабря 2021 года и заканчивая 27 сентября 2026 года взяты из канала <a href="https://t.me/tonprices">@tonprices</a>. Дальнейшая поддержка базы данных работает через <a href="https://calcmula.app">calcmula.app</a>, отправляя запрос каждые 5 минут.</p></details>';
+  return { type: 'details', summary: 'Об источнике', blocks: [paragraph([
+    'Все цены GRAM начиная с 15 декабря 2021 года и заканчивая 27 сентября 2026 года взяты из канала ',
+    link('@tonprices', 'https://t.me/tonprices'), '. Дальнейшая поддержка базы данных работает через ',
+    link('calcmula.app', 'https://calcmula.app/'), ', отправляя запрос каждые 5 минут.',
+  ])] };
 }
 
 export function priceResult(query, body) {
   const data = body.data;
   const day = query.moment.toFormat('dd.MM.yyyy');
-  const zone = `${e(query.label)}${query.defaultZone ? ' · по умолчанию' : ''}`;
+  const zone = `${query.label}${query.defaultZone ? ' · по умолчанию' : ''}`;
   const local = value => DateTime.fromISO(value, { setZone: true }).setZone(query.zone).toFormat('dd.MM.yyyy HH:mm:ss');
   if (query.kind === 'daily') {
     if (!data.segments.length) return noticeResult(`GRAM · ${day}: нет данных`, `За этот день (${query.label}) в архиве нет наблюдений. Это не нулевая цена.`);
-    const segments = data.segments.map(segment => {
-      const currency = e(segment.quote_currency);
-      const rows = [[`${icon('first')} Первая цена`, segment.first], [`${icon('last')} Последняя цена`, segment.last], [`${icon('max')} Максимум`, segment.max], [`${icon('min')} Минимум`, segment.min]];
-      return `<table bordered striped><tr><th>Показатель</th><th>Значение</th></tr>` +
-        rows.map(([label, value]) => `<tr><td>${label}</td><td><b>${price(value)} ${currency}</b></td></tr>`).join('') +
-        `<tr><td>${icon('first')} Первая запись</td><td><code>${e(local(segment.first_at))}</code></td></tr>` +
-        `<tr><td>${icon('last')} Последняя запись</td><td><code>${e(local(segment.last_at))}</code></td></tr>` +
-        `<tr><td>${icon('observations')} Наблюдений</td><td><b>${e(segment.points_count)}</b></td></tr></table>`;
-    }).join('');
+    const summary = summarizeDay(data.segments);
+    const rows = [['first', 'Первая цена', summary.first], ['last', 'Последняя цена', summary.last], ['max', 'Максимум', summary.max], ['min', 'Минимум', summary.min]];
+    const table = { type: 'table', is_bordered: true, is_striped: true, cells: [
+      [cell('Показатель', true), cell('Значение', true)],
+      ...rows.map(([name, label, value]) => [cell([richIcon(name), ' ' + label]), cell(bold(`${price(value)} USD`))]),
+      [cell([richIcon('first'), ' Первая запись']), cell({ type: 'code', text: local(summary.first_at) })],
+      [cell([richIcon('last'), ' Последняя запись']), cell({ type: 'code', text: local(summary.last_at) })],
+      [cell([richIcon('observations'), ' Наблюдений']), cell(bold(String(summary.points_count)))],
+    ] };
     const notes = [];
-    if (data.segments.some(segment => segment.max_gap_seconds > 900)) notes.push('Пропуски >15 мин');
+    if (summary.max_gap_seconds > 900) notes.push('Пропуски >15 мин');
     notes.push('Min/max по сохранённым данным');
-    const dailyFooter = `<footer>${notes.map(e).join(' · ')}</footer>`;
-    const single = data.segments.length === 1 ? data.segments[0] : null;
-    const description = single ? `От ${String(single.min).replace('.', ',')} до ${String(single.max).replace('.', ',')} ${single.quote_currency} · ${query.label}` : `Сводка по ${data.segments.length} источникам и валютам · ${query.label}`;
-    return result({ title: `GRAM · ${day} · за день`, description, query: day,
-      html: `<h2>${icon('gram')} GRAM · ${day}</h2><p>${icon('summary')} Сводка за день · ${zone}</p>` +
-        (!data.is_day_complete ? '<p><b>День ещё идёт — сводка неполная.</b></p>' : '') + segments +
-        (data.segments.length > 1 ? '<p>Источники и валюты показаны отдельно. USD и USDT не пересчитываются друг в друга.</p>' : '') +
-        sourceNotes() + dailyFooter,
+    if (summary.approximated) notes.push(approximationNote);
+    return blockResult({ title: `GRAM · ${day} · за день`,
+      description: `От ${price(summary.min)} до ${price(summary.max)} USD · ${query.label}`, query: day,
+      blocks: [{ type: 'heading', size: 2, text: [richIcon('gram'), ` GRAM · ${day}`] },
+        paragraph([richIcon('summary'), ` Сводка за день · ${zone}`]),
+        ...(!data.is_day_complete ? [paragraph(bold('День ещё идёт — сводка неполная.'))] : []), table, sourceNotes()],
+      footerText: notes.join(' · '),
     });
   }
-  return result({ title: `GRAM · ${day} ${query.moment.toFormat('HH:mm')} · ${data.price} ${data.quote_currency}`,
+  const { approximated } = displayCurrency(data.quote_currency);
+  return blockResult({ title: `GRAM · ${day} ${query.moment.toFormat('HH:mm')} · ${data.price} USD`,
     description: `Запись: ${local(data.observed_at)} · ${query.label}`,
     query: `${day} ${query.moment.toFormat('HH:mm')}`,
-    html: `<h2>${icon('gram')} GRAM · ${day}</h2><p><b>1 GRAM = ${price(data.price)} ${e(data.quote_currency)}</b></p>` +
-      `<table compact><tr><td>Запрошено</td><td>${e(local(data.requested_at))}</td></tr><tr><td>Найдена запись</td><td>${e(local(data.observed_at))}</td></tr><tr><td>Часовой пояс</td><td>${zone}</td></tr></table>` +
-      `<p>Запись за ${e(data.age_seconds)} с до указанного момента.</p>` + sourceNotes() + footer,
+    blocks: [{ type: 'heading', size: 2, text: [richIcon('gram'), ` GRAM · ${day}`] },
+      paragraph(bold(`1 GRAM = ${price(data.price)} USD`)),
+      { type: 'table', is_compact: true, cells: [
+        [cell('Запрошено'), cell(local(data.requested_at))],
+        [cell('Найдена запись'), cell(local(data.observed_at))],
+        [cell('Часовой пояс'), cell(zone)],
+      ] }, paragraph(`Запись за ${data.age_seconds} с до указанного момента.`), sourceNotes()],
+    footerText: [link('Gram Prices', 'https://gram.rin.ms/docs'), ' · История GRAM', ...(approximated ? [' · ' + approximationNote] : [])],
   });
 }
 

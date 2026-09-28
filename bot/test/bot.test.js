@@ -5,6 +5,7 @@ import { parseQuery, QueryError } from '../src/query.js';
 import { createPriceClient, PriceError } from '../src/prices.js';
 import { createInlineHandler, createChosenHandler } from '../src/inline.js';
 import { priceResult, helpResult, noticeResult } from '../src/render.js';
+import { comparePrices, summarizeDay } from '../src/summary.js';
 
 const now = DateTime.fromISO('2026-09-28T12:00:00Z');
 const parse = input => parseQuery(input, { now });
@@ -50,36 +51,78 @@ test('leap day, today and empty query', () => {
   assert.equal(parse('28.09.26').kind, 'daily');
   assert.equal(parse('').kind, 'help');
 });
-test('native Rich Message content includes headings, table, exact decimals and source', () => {
+test('native Rich Message blocks include custom emojis, one table, exact decimals and source', () => {
   const result = priceResult(parse('24.04.22'), daily);
   assert.equal(result.type, 'article');
-  const html = result.input_message_content.rich_message.html;
-  assert.match(html, /<h2><tg-emoji emoji-id="6006074913742396956">💎<\/tg-emoji> GRAM · 24.04.2022<\/h2>/);
-  assert.match(html, /<table bordered striped>/);
-  assert.match(html, /2,07000000000000001/);
-  assert.match(html, /2,050000/);
-  assert.match(html, /МСК/);
-  assert.match(html, /@tonprices/);
+  const rich = result.input_message_content.rich_message;
+  assert.equal(rich.html, undefined);
+  assert.deepEqual(rich.blocks[0], { type: 'heading', size: 2, text: [{ type: 'custom_emoji', custom_emoji_id: '6006074913742396956', alternative_text: '💎' }, ' GRAM · 24.04.2022'] });
+  assert.equal(rich.blocks.filter(block => block.type === 'table').length, 1);
+  const text = JSON.stringify(rich);
+  assert.match(text, /2,07000000000000001/);
+  assert.match(text, /2,050000/);
+  assert.match(text, /МСК/);
+  assert.match(text, /@tonprices/);
+  const emojis = [];
+  const walk = value => {
+    if (!value || typeof value !== 'object') return;
+    if (value.type === 'custom_emoji') emojis.push(value.custom_emoji_id);
+    Object.values(value).forEach(walk);
+  };
+  walk(rich);
+  for (const id of ['6006074913742396956', '5960551395730919906', '5798535677318533269', '5900006938271288826', '5875078273775439450', '5875008416132370818', '5874960879434338403', '5884343982816759327', '5886666250158870040']) assert.ok(emojis.includes(id), id);
+  assert.equal(emojis.filter(id => id === '5798535677318533269').length, 2);
+  assert.equal(emojis.filter(id => id === '5900006938271288826').length, 2);
   assert.ok(!('message_text' in result.input_message_content));
   assert.equal(result.input_message_content.rich_message.skip_entity_detection, true);
   assert.ok(Buffer.byteLength(result.id) <= 64);
 });
-test('partial days, gaps and USD/USDT remain explicit and separate', () => {
+test('mixed currencies give a single USD table with an explicit 1:1 footer', () => {
   const body = { ...daily, data: { ...daily.data, is_day_complete: false, segments: [segment, { ...segment, series: 'calcmula-usdt', quote_currency: 'USDT', providers: ['calcmula'], max_gap_seconds: 1200 }] } };
-  const html = priceResult(parse('24.04.22'), body).input_message_content.rich_message.html;
-  assert.match(html, /сводка неполная/);
-  assert.match(html, /Пропуски &gt;15 мин/);
-  assert.match(html, /2,050000 USD/);
-  assert.match(html, /2,050000 USDT/);
-  assert.match(html, /не пересчитываются/);
+  const before = JSON.stringify(body);
+  const rich = priceResult(parse('24.04.22'), body).input_message_content.rich_message;
+  assert.equal(rich.blocks.filter(block => block.type === 'table').length, 1);
+  const text = JSON.stringify(rich);
+  assert.match(text, /сводка неполная/);
+  assert.match(text, /Пропуски >15 мин/);
+  assert.match(text, /2,050000 USD/);
+  assert.doesNotMatch(text, /2,050000 USDT/);
+  assert.match(rich.blocks.at(-1).text, /USDT ≈ USD \(1:1\)/);
+  assert.equal(rich.blocks.find(block => block.type === 'table').cells.at(-1)[1].text.text, '574');
+  assert.equal(JSON.stringify(body), before, 'the API response must not be mutated');
+});
+
+test('merged summary chooses chronological endpoints and precise extrema across three segments', () => {
+  const a = { ...segment, first: '1.56', last: '1.60', min: '1.55', max: '1.63', first_at: '2026-09-26T21:01:01Z', last_at: '2026-09-27T05:43:43Z', points_count: 96 };
+  const b = { ...segment, quote_currency: 'USDT', first: '1.590396008606143', last: '1.6203467542054002', min: '1.5802591625026505', max: '1.7104378720952564', first_at: '2026-09-27T06:19:06Z', last_at: '2026-09-27T20:55:10Z', points_count: 175 };
+  const c = { ...segment, first: '1.71043787209525641', last: '1.60', min: '1.60', max: '1.71043787209525641', first_at: '2026-09-27T21:00:00Z', last_at: '2026-09-27T21:55:00Z', points_count: 11 };
+  const two = summarizeDay([b, a]);
+  assert.equal(two.first, '1.56');
+  assert.equal(two.last, '1.6203467542054002');
+  assert.equal(two.min, '1.55');
+  assert.equal(two.max, '1.7104378720952564');
+  assert.equal(two.points_count, 271);
+  assert.equal(two.max_gap_seconds, 2123);
+  const three = summarizeDay([b, c, a]);
+  assert.equal(three.max, '1.71043787209525641');
+  assert.equal(three.last, '1.60');
+  assert.equal(three.points_count, 282);
+  assert.equal(comparePrices('9.999999999999999999', '10.0'), -1);
+  assert.equal(comparePrices('02.050000', '2.05'), 0);
+  assert.throws(() => summarizeDay([b, { ...c, quote_currency: 'EUR' }]), /Unsupported/);
 });
 test('exact time shows actual observation, amount and currency', () => {
   const body = { data: { price: '1.234567890123456789', quote_currency: 'USD', requested_at: '2022-04-24T12:30:00Z', observed_at: '2022-04-24T12:28:16Z', age_seconds: 104, source: { provider: 'calcmula' } }, meta: { warnings: [] } };
-  const html = priceResult(parse('24.04.22 15:30'), body).input_message_content.rich_message.html;
-  assert.match(html, /15:30:00/);
-  assert.match(html, /15:28:16/);
-  assert.match(html, /1,234567890123456789 USD/);
-  assert.match(html, /104 с/);
+  const text = JSON.stringify(priceResult(parse('24.04.22 15:30'), body).input_message_content.rich_message);
+  assert.match(text, /15:30:00/);
+  assert.match(text, /15:28:16/);
+  assert.match(text, /1,234567890123456789 USD/);
+  assert.match(text, /104 с/);
+  assert.doesNotMatch(text, /USDT ≈ USD/);
+  const usdt = priceResult(parse('24.04.22 15:30'), { ...body, data: { ...body.data, quote_currency: 'USDT' } });
+  assert.match(usdt.title, / USD$/);
+  assert.match(JSON.stringify(usdt.input_message_content.rich_message), /1,234567890123456789 USD/);
+  assert.match(JSON.stringify(usdt.input_message_content.rich_message.blocks.at(-1)), /USDT ≈ USD \(1:1\)/);
 });
 test('empty history is not rendered as zero; rich HTML is escaped', () => {
   assert.match(priceResult(parse('24.04.22'), { ...daily, data: { ...daily.data, segments: [] } }).description, /не нулевая/);
@@ -139,9 +182,25 @@ test('chosen result edits the selected inline message and survives a fresh handl
   await handler({ result_id: answers[0].results[0].id, query: '24.04.22 UTC+5', inline_message_id: 'sent-inline-id' });
   assert.equal(edits.length, 1);
   assert.equal(edits[0].inline_message_id, 'sent-inline-id');
-  assert.match(edits[0].rich_message.html, /2,07000000000000001 USD/);
-  assert.match(edits[0].rich_message.html, /<tg-button type="url" url="https:\/\/gram.rin.ms\/docs"><tg-emoji emoji-id="5884343982816759327">/);
+  assert.match(JSON.stringify(edits[0].rich_message), /2,07000000000000001 USD/);
+  const button = edits[0].rich_message.blocks.find(block => block.type === 'buttons').buttons.find(button => button.url);
+  assert.equal(button.url, 'https://gram.rin.ms/docs');
+  assert.equal(button.text[0].custom_emoji_id, '5884343982816759327');
   assert.deepEqual(edits[0].reply_markup, { inline_keyboard: [] });
+});
+
+test('cached prices still wait for the Loading placeholder before editing custom emoji blocks', async () => {
+  const edits = [];
+  let release;
+  const settled = new Promise(resolve => { release = resolve; });
+  const handler = createChosenHandler({ getPrice: async () => daily, edit: async params => edits.push(params), settle: () => settled });
+  const task = handler({ result_id: 'load:test', query: '24.04.22', inline_message_id: 'channel-message' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(edits.length, 0);
+  release();
+  await task;
+  assert.equal(edits.length, 1);
+  assert.equal(edits[0].rich_message.blocks[0].text[0].type, 'custom_emoji');
 });
 
 test('chosen result handles price errors and ignores legacy or uneditable messages', async () => {
