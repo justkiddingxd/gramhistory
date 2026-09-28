@@ -1,0 +1,110 @@
+name: tonprices
+
+x-common: &common
+  build: .
+  image: tonprices:0.2.0
+  environment:
+    TONPRICES_DB: /data/ton-prices.sqlite3
+  volumes:
+    - ./data:/data
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  init:
+    <<: *common
+    command: ["python", "-m", "tonprices.migrate"]
+    restart: "no"
+
+  api:
+    <<: *common
+    environment:
+      TONPRICES_DB: /data/ton-prices.sqlite3
+      TONPRICES_EXPORT_DIR: /exports
+    volumes:
+      - ./data:/data
+      - price_exports:/exports:ro
+    command: ["python", "-m", "uvicorn", "tonprices.app:app", "--host", "0.0.0.0", "--port", "8087"]
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:8087:8087"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8087/health/ready', timeout=3).close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  collector:
+    <<: *common
+    command: ["python", "-m", "tonprices.collector", "--loop"]
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    stop_grace_period: 20s
+
+  exporter:
+    <<: *common
+    command: ["python", "-m", "tonprices.exporter", "--loop"]
+    environment:
+      TONPRICES_DB: /data/ton-prices.sqlite3
+      TONPRICES_EXPORT_DIR: /exports
+    volumes:
+      - ./data:/data
+      - price_exports:/exports
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    cpus: 0.5
+    mem_limit: 256m
+    stop_grace_period: 20s
+
+  bot:
+    build: ./bot
+    image: gramhistorybot:1.0.0
+    environment:
+      PRICES_API_URL: http://api:8087
+      TELEGRAM_BOT_TOKEN_FILE: /run/secrets/telegram_bot_token
+    secrets:
+      - telegram_bot_token
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 192m
+    cpus: 0.5
+    pids_limit: 64
+    stop_grace_period: 15s
+    healthcheck:
+      test: ["CMD", "node", "src/healthcheck.js"]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+secrets:
+  telegram_bot_token:
+    file: ./secrets/telegram_bot_token
+
+volumes:
+  price_exports:

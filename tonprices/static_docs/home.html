@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="История курса GRAM с 15 декабря 2021 года. Проверьте цену на дату, получите сводку за день или подключите API к своему проекту."><meta name="color-scheme" content="dark light">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('gram-docs-theme')==='light'?'light':'dark'}catch{}</script>
+<title>Gram Prices — курс GRAM на вашу дату</title>
+<link rel="alternate" type="text/markdown" href="/skill.md" title="Инструкция для нейросетей">
+<link rel="icon" type="image/png" href="/docs-assets/gram-history.png">
+<link rel="preload" href="/docs-assets/fonts/sf-pro-display-regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/docs-assets/fonts/sf-pro-display-medium.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/docs-assets/fonts.css?v=9">
+<link rel="stylesheet" href="/docs-assets/styles.css?v=9">
+<script src="/docs-assets/common.js?v=7" defer></script>
+<script src="/docs-assets/home.js?v=7" defer></script>
+</head><body class="home-page">
+<a class="skip-link" href="#main">К содержимому</a><svg class="sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+    <symbol id="i-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v16M12 4a8 8 0 0 1 0 16" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6m0-6L10 14M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/></symbol>
+  </defs></svg>
+<header class="topbar"><div class="topbar-inner">
+<a class="brand" href="/" aria-label="Gram Prices — главная"><img src="/docs-assets/gram-history.png" width="44" height="44" alt=""><span>gram<span class="brand-suffix">prices</span></span></a>
+<nav class="top-nav" aria-label="Основная навигация"><a href="/" aria-current="page">Главная</a><a href="/docs" >Документация</a></nav>
+<div class="header-actions"><a class="telegram-link" href="https://t.me/gramhistorybot" target="_blank" rel="noopener noreferrer">Telegram <svg class="icon" aria-hidden="true"><use href="#i-external"/></svg></a><button class="icon-button" id="theme-toggle" type="button" aria-label="Включить светлую тему" title="Переключить тему"><svg class="icon" aria-hidden="true"><use href="#i-theme"/></svg></button></div>
+</div></header>
+<main id="main" class="home-main" tabindex="-1">
+<section class="hero" aria-labelledby="hero-title">
+<div class="hero-copy"><h1 id="hero-title">Курс GRAM.<br><span>На вашу дату.</span></h1><p class="lead">У каждой цены есть своя история. Найдите курс на нужный момент или получите сводку за день — с декабря 2021 года до сегодня.</p></div>
+<div class="hero-mark"><img src="/docs-assets/gram-history.png" width="216" height="216" alt="Логотип Gram Prices: история и драгоценный камень"><p>Цена меняется.<br>История остаётся.</p></div>
+</section>
+<section class="try-section" id="playground" aria-labelledby="try-title">
+<div class="section-heading"><div><h2 id="try-title">Попробуйте запрос</h2><p>Введите дату. Ответ придёт из настоящей базы.</p></div><a class="text-link" href="/docs">Как устроен API <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div>
+<div class="console-address"><span class="method">GET</span><code>https://gram.rin.ms</code><button class="copy-button" data-copy-text="https://gram.rin.ms" aria-label="Скопировать базовый адрес"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg></button><span class="connection" id="connection"><span class="status-dot"></span><span id="connection-label">Проверяем API</span></span></div>
+        <div class="console">
+          <div class="request-pane"><form id="request-form"><div class="endpoint-picker"><label for="endpoint">Что получить</label><select id="endpoint" name="endpoint"><option value="at">Курс на дату</option><option value="latest">Текущий курс</option><option value="history">Историю за период</option><option value="daily">Сводку за день</option><option value="coverage">Покрытие данных</option></select></div><div id="request-fields" class="request-fields"><label for="param-at">Дата или дата со временем</label><input id="param-at" name="at" value="2024-02-05" required spellcheck="false"></div><details class="advanced" id="advanced"><summary>Дополнительные параметры</summary><div id="extra-fields"></div></details><button class="run-button" id="run-request" type="submit"><span>Выполнить запрос</span><svg class="icon"><use href="#i-arrow"/></svg></button></form>
+            <div class="code-toolbar"><div class="code-tabs" role="tablist" aria-label="Язык примера"><button id="tab-curl" type="button" role="tab" aria-selected="true" aria-controls="request-code-panel" data-language="curl">cURL</button><button id="tab-python" type="button" role="tab" aria-selected="false" tabindex="-1" aria-controls="request-code-panel" data-language="python">Python</button><button id="tab-javascript" type="button" role="tab" aria-selected="false" tabindex="-1" aria-controls="request-code-panel" data-language="javascript">JavaScript</button></div><button class="copy-button" id="copy-request" type="button" aria-label="Скопировать код запроса"><svg class="icon"><use href="#i-copy"/></svg></button></div><div role="tabpanel" id="request-code-panel" aria-labelledby="tab-curl"><pre class="request-code" tabindex="0" aria-label="Код запроса"><code id="request-code">curl --get 'https://gram.rin.ms/v1/ton/price' \
+  --data-urlencode 'at=2024-02-05'</code></pre></div>
+          </div>
+          <div class="response-pane"><div class="response-heading"><span id="response-title">Ответ на вашу дату</span><div><span id="response-status" class="response-status">JSON</span><button class="copy-button" id="copy-response" type="button" aria-label="Скопировать JSON ответа"><svg class="icon"><use href="#i-copy"/></svg></button></div></div><div class="response-context" id="response-context"><span>05.02.2024 · сутки UTC</span><span>Пример · сокращённый JSON</span></div><pre class="response-code" id="response-code-panel" tabindex="0" aria-label="Ответ API"><code id="response-code">{
+  "data": {
+    "kind": "daily_summary",
+    "date": "2024-02-05",
+    "timezone": "UTC",
+    "is_day_complete": true,
+    "segments": [
+      {
+        "quote_currency": "USD",
+        "first": "2.05",
+        "last": "2.05",
+        "min": "2.04",
+        "max": "2.07",
+        "points_count": 287
+      }
+    ]
+  }
+}</code></pre><div class="response-note" id="response-note">Простая дата возвращает сводку за день. Все цены передаются строками, без дополнительного округления.</div></div>
+        </div>
+        <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
+        <noscript><p class="note">Интерактивные запросы требуют JavaScript. Справочник на странице документации работает без него.</p></noscript>
+      
+</section>
+<section class="reading-row" id="about" aria-labelledby="about-title"><h2 id="about-title">Одна дата. <br>Вся картина.</h2><div class="reading-body"><p class="large-copy">Простая дата — первая, последняя, минимальная и максимальная цены за день. Дата со временем — ближайшая сохранённая цена до этого момента.</p><p>В каждом ответе есть валюта, источник и время наблюдения. API читает готовую базу, поэтому запрос не ждёт ответа Telegram или Calcmula.</p><p><a href="https://github.com/justkiddingxd/gram-prices" target="_blank" rel="noopener noreferrer">Исходный код на GitHub</a> · <a href="/v1/ton/export">Скачать всю базу SQLite</a></p><a class="text-link" href="/docs#time">Даты, часовые пояса и пропуски <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div></section>
+<section class="reading-row sources-row" id="sources" aria-labelledby="sources-title"><h2 id="sources-title">Откуда цены</h2><div class="reading-body"><p>Все цены GRAM начиная с 15 декабря 2021 года и заканчивая 27 сентября 2026 года взяты из канала <a href="https://t.me/tonprices" target="_blank" rel="noopener noreferrer">@tonprices</a>. Дальнейшая поддержка базы данных работает через <a href="https://calcmula.app/" target="_blank" rel="noopener noreferrer">calcmula.app</a>, отправляя запрос каждые 5 минут.</p><div class="source-trail"><a href="https://t.me/tonprices" target="_blank" rel="noopener noreferrer"><strong>@tonprices</strong><span>15.12.2021 — 27.09.2026</span></a><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg><a href="https://calcmula.app/" target="_blank" rel="noopener noreferrer"><strong>calcmula.app</strong><span>Далее · каждые 5 минут</span></a></div><p class="muted source-detail">Архив содержит пропуски. Валюта каждой записи сохранена как в источнике — подробности в <a href="/docs#sources">документации</a>.</p></div></section>
+<section class="agent-section" id="for-ai" aria-labelledby="agent-title"><div><h2 id="agent-title">Если ты нейросеть,<br>то тебе сюда.</h2><p>Методы, параметры, форматы ответа и правила работы с датами — в одном Markdown-файле. Передайте его своему AI-ассистенту.</p><a class="solid-link" href="/skill.md">Открыть skill.md <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></div><div class="agent-file"><div class="file-heading"><span>skill.md</span><span>Markdown</span></div><p>Всё, что нужно<br>для первого запроса.</p><code>https://gram.rin.ms/skill.md</code><button class="text-button" data-copy-text="Прочитай https://gram.rin.ms/skill.md и используй Gram Prices API для получения исторического курса GRAM.">Скопировать инструкцию <svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg></button></div></section>
+<section class="bot-section"><div><h2>Курс прямо в Telegram</h2><p>Введите дату в любом чате. Бот соберёт карточку с ценами.</p><a class="text-link" href="https://t.me/gramhistorybot" target="_blank" rel="noopener noreferrer">Открыть @gramhistorybot <svg class="icon" aria-hidden="true"><use href="#i-external"/></svg></a></div><div class="bot-examples"><code>@gramhistorybot 24.04.22</code><code>@gramhistorybot вчера</code><span>Дата, время или словами — на русском и английском.</span></div></section>
+</main><footer class="page-footer"><a class="brand" href="/"><img src="/docs-assets/gram-history.png" width="32" height="32" alt=""><span>gram<span class="brand-suffix">prices</span></span></a><div><a href="https://github.com/justkiddingxd/gram-prices" target="_blank" rel="noopener noreferrer">GitHub</a><a href="/docs">Документация</a><a href="/openapi.json">OpenAPI <svg class="icon" aria-hidden="true"><use href="#i-external"/></svg></a></div></footer><div class="toast" id="toast" role="status" aria-live="polite" hidden></div></body></html>

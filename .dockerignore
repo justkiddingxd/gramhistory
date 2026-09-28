@@ -1,0 +1,13 @@
+data/
+.deploy/
+acme/
+.venv/
+__pycache__/
+**/__pycache__/
+*.sqlite3*
+tests/
+.pytest_cache/
+.git/
+bot/node_modules/
+secrets/
+.env*

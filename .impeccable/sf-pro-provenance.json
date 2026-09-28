@@ -1,0 +1,39 @@
+{
+  "source": "https://devimages-cdn.apple.com/design/resources/download/SF-Pro.dmg",
+  "downloaded": "2026-09-28",
+  "treatment": "SF Pro Display static OTF faces, converted to WOFF2 with Latin, Cyrillic, punctuation, currency and math glyphs preserved. Internal names and license metadata preserved.",
+  "fonts": [
+    {
+      "file": "sf-pro-display-regular.woff2",
+      "weight": 400,
+      "family": "SF Pro Display",
+      "bytes": 111900,
+      "sha256": "21e4a474b8af18b74771dfa30da56faa05aead6d1f6623ead6ecfa769c07e9b1",
+      "cyrillic": true
+    },
+    {
+      "file": "sf-pro-display-medium.woff2",
+      "weight": 500,
+      "family": "SF Pro Display",
+      "bytes": 129752,
+      "sha256": "475ff311acaf2e258fe4306fde6ee2b44fa173f154785a50398cbf47e48552d9",
+      "cyrillic": true
+    },
+    {
+      "file": "sf-pro-display-semibold.woff2",
+      "weight": 600,
+      "family": "SF Pro Display",
+      "bytes": 131876,
+      "sha256": "7e34a1f75c8e281b630298d7c7990d91402ef78087fac0c95ea700ab84d10828",
+      "cyrillic": true
+    },
+    {
+      "file": "sf-pro-display-bold.woff2",
+      "weight": 700,
+      "family": "SF Pro Display",
+      "bytes": 126376,
+      "sha256": "b9d40f4914f3a2b8d72dfd72737eafc3b7be7a810c3d5ce499c0fb3348c142bb",
+      "cyrillic": true
+    }
+  ]
+}
