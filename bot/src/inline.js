@@ -26,7 +26,7 @@ export function createInlineHandler({ answer, log = () => {}, clock = () => Date
   };
 }
 
-export function createChosenHandler({ getPrice, edit, log = () => {}, wait = sleep, settle = () => sleep(400), clock = () => DateTime.utc() }) {
+export function createChosenHandler({ getPrice, edit, log = () => {}, wait = sleep, clock = () => DateTime.utc() }) {
   const pending = new Map();
   async function editWithRetry(params) {
     for (let attempt = 0; ; attempt++) {
@@ -42,9 +42,6 @@ export function createChosenHandler({ getPrice, edit, log = () => {}, wait = sle
   }
   async function finish(raw) {
     const started = performance.now();
-    // Keep the placeholder and the Rich Message as distinct channel updates,
-    // even when historical prices are already cached.
-    const placeholderSettled = settle();
     let result, kind = 'notice';
     try {
       const anchor = /^load:r([0-9a-z]+):[a-f0-9]{16}$/.exec(raw.result_id);
@@ -56,7 +53,6 @@ export function createChosenHandler({ getPrice, edit, log = () => {}, wait = sle
       result = error instanceof QueryError ? noticeResult('Проверьте дату и время', error.message) : errorResult(error);
     }
     try {
-      await placeholderSettled;
       await editWithRetry({
         inline_message_id: raw.inline_message_id,
         rich_message: result.input_message_content.rich_message,

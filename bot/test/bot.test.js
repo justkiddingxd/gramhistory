@@ -189,20 +189,6 @@ test('chosen result edits the selected inline message and survives a fresh handl
   assert.deepEqual(edits[0].reply_markup, { inline_keyboard: [] });
 });
 
-test('cached prices still wait for the Loading placeholder before editing custom emoji blocks', async () => {
-  const edits = [];
-  let release;
-  const settled = new Promise(resolve => { release = resolve; });
-  const handler = createChosenHandler({ getPrice: async () => daily, edit: async params => edits.push(params), settle: () => settled });
-  const task = handler({ result_id: 'load:test', query: '24.04.22', inline_message_id: 'channel-message' });
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(edits.length, 0);
-  release();
-  await task;
-  assert.equal(edits.length, 1);
-  assert.equal(edits[0].rich_message.blocks[0].text[0].type, 'custom_emoji');
-});
-
 test('chosen result handles price errors and ignores legacy or uneditable messages', async () => {
   const edits = [], logs = [];
   const handler = createChosenHandler({ getPrice: async () => { throw new PriceError('DATA_GAP'); }, edit: async params => edits.push(params), log: entry => logs.push(entry) });
